@@ -399,12 +399,20 @@ def command_update_all(args):
     return failed
 
 
+def command_schema(args):
+    from esphome.schema import dump_schema
+    CORE.config_path = args.configuration[0]
+    dump_schema()
+    return
+
+
 PRE_CONFIG_ACTIONS = {
     'wizard': command_wizard,
     'version': command_version,
     'dashboard': command_dashboard,
     'vscode': command_vscode,
     'update-all': command_update_all,
+    'schema': command_schema,
 }
 
 POST_CONFIG_ACTIONS = {
@@ -503,6 +511,8 @@ def parse_args(argv):
     vscode.add_argument('--ace', action='store_true')
 
     subparsers.add_parser('update-all', help=argparse.SUPPRESS)
+
+    subparsers.add_parser('schema', help=argparse.SUPPRESS)
 
     return parser.parse_args(argv[1:])
 

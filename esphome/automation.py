@@ -1,3 +1,4 @@
+from esphome.schema import schema_info
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_AUTOMATION_ID, CONF_CONDITION, CONF_ELSE, CONF_ID, CONF_THEN, \
@@ -97,6 +98,7 @@ def validate_automation(extra_schema=None, extra_validators=None, single=False):
         # This should only happen with invalid configs, but let's have a nice error message.
         return [schema(value)]
 
+    @schema_info('automation')
     def validator(value):
         value = validator_(value)
         if extra_validators is not None:
