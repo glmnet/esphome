@@ -10,6 +10,24 @@ def get_ref(definition):
     return {"$ref": "#/definitions/" + definition}
 
 
+def get_array_or_single_definition(ref):
+    return {"oneOf": [
+        {
+            "type": "array",
+            "items": ref
+        },
+        {
+            "type": "object",
+            "properties": {
+                "then": {
+                    "type": "array",
+                    "items": ref
+                }
+            }
+        }
+    ]}
+
+
 def schema_info(description):
     def decorate(func):
         schema_registry[func] = get_ref(description)
@@ -17,6 +35,7 @@ def schema_info(description):
     return decorate
 
 
+JSC_DESCRIPTION = "description"
 JSC_PROPERTIES = "properties"
 
 
@@ -38,32 +57,20 @@ class JsonSchema:
         self.base_props = {}
         self.actions = []
         self.conditions = []
-        self.output = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "definitions": {
-                "condition": {"anyOf": self.conditions},
-                "condition_list":
+        self.definitions = {
+            "condition": {"anyOf": self.conditions},
+            "condition_list":
                 {"type": "array", "items": {"$ref": "#/definitions/condition"}},
                 "action": {"anyOf": self.actions},
                 "automation":
-                {"oneOf": [
-                    {
-                        "type": "array",
-                        "items": {"$ref": "#/definitions/action"}
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "then": {
-                                "type": "array",
-                                "items": {"$ref": "#/definitions/action"}
-                            }
-                        }
-                    }
-                ]},
-            },
+                get_array_or_single_definition(get_ref("action")),
+        }
+
+        self.output = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "properties": self.base_props}
+            "definitions": self.definitions,
+            JSC_PROPERTIES: self.base_props}
 
     def add_core(self):
         from esphome.core_config import CONFIG_SCHEMA
@@ -85,7 +92,15 @@ class JsonSchema:
             if ((c.config_schema is not None) or c.is_platform_component):
                 if c.config_schema is not None:
                     # adds root components which are not platforms, e.g. api: logger:
-                    self.base_props[domain] = self.get_schema(c.config_schema)
+
+                    schema = self.get_schema(c.config_schema)
+                    if c.is_multi_conf:
+                        # this can be a simple component or an array
+                        # add the component to definitions
+                        self.definitions[domain] = schema
+                        schema = get_array_or_single_definition(get_ref(domain))
+
+                    self.base_props[domain] = schema
                 if c.is_platform_component:
                     # this is a platform_component, e.g. binary_sensor
 
@@ -123,7 +138,7 @@ class JsonSchema:
             entry = self.default_schema()
 
         # annotate schema validator info
-        entry["description"] = str(value)
+        entry[JSC_DESCRIPTION] = str(value)
         return entry
 
     def default_schema(self):
@@ -194,7 +209,7 @@ class JsonSchema:
             schema = self.get_schema(ACTION_REGISTRY[name].schema)
             if not schema:
                 schema = {"type": "string"}
-            action_schema = {"type": "object", "properties": {
+            action_schema = {"type": "object", JSC_PROPERTIES: {
                 name: schema
             }}
             self.actions.append(action_schema)
@@ -205,7 +220,7 @@ class JsonSchema:
             schema = self.get_schema(CONDITION_REGISTRY[name].schema)
             if not schema:
                 schema = {"type": "string"}
-            condition_schema = {"type": "object", "properties": {
+            condition_schema = {"type": "object", JSC_PROPERTIES: {
                 name: schema
             }}
             self.conditions.append(condition_schema)
