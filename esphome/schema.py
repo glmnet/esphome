@@ -25,7 +25,16 @@ class JsonSchema:
     def __init__(self):
         from esphome.automation import validate_potentially_and_condition
         schema_registry[validate_potentially_and_condition] = get_ref('condition_list')
+
         schema_registry[cv.boolean] = {"type": "boolean"}
+
+        schema_registry[cv.int_] = {"type": "number"}
+        schema_registry[cv.port] = {"type": "number"}
+        schema_registry[cv.int_range] = {"type": "number"}
+        schema_registry[cv.float_range] = {"type": "number"}
+
+        schema_registry[cv.string_strict] = {"type": "string"}
+        schema_registry[cv.valid_name] = {"type": "string"}
 
         self.base_props = {}
         self.actions = []
@@ -164,7 +173,7 @@ class JsonSchema:
         output["type"] = ["object", "null"]
 
         for k in input:
-            # if (str(k) == 'fast_connect'):
+            # if (str(k) == 'port'):
             #     breakpoint()
 
             v = input[k]
@@ -174,8 +183,9 @@ class JsonSchema:
             else:
                 p[str(k)] = self.get_entry(v)
 
-            if isinstance(k, cv.Required):
-                p[str(k)]["required"] = True
+            # TODO: see required to check if completion shows before
+            # if isinstance(k, cv.Required):
+            #     p[str(k)]["required"] = True
 
         return output
 
