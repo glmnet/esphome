@@ -25,6 +25,7 @@ class JsonSchema:
     def __init__(self):
         from esphome.automation import validate_potentially_and_condition
         schema_registry[validate_potentially_and_condition] = get_ref('condition_list')
+        schema_registry[cv.boolean] = {"type": "boolean"}
 
         self.base_props = {}
         self.actions = []
@@ -74,11 +75,8 @@ class JsonSchema:
         for domain in dir_names:
             c = get_component(domain)
             if ((c.config_schema is not None) or c.is_platform_component):
-                # print("{} {}".format(
-                #     "platform  " if c.is_platform_component else "component ", domain))
-
                 if c.config_schema is not None:
-                    # adds root components which are not platforms
+                    # adds root components which are not platforms, e.g. api: logger:
                     self.base_props[domain] = self.get_schema(c.config_schema)
                 if c.is_platform_component:
                     # this is a platform_component, e.g. binary_sensor
@@ -121,7 +119,8 @@ class JsonSchema:
         return entry
 
     def default_schema(self):
-        return {"type": "string"}
+        # Accept anything
+        return {"type": ["null", "object", "string", "array", "number"]}
 
     def get_schema(self, input):
         # analyze input key, if it is not a Required or Optional, then it is an array
@@ -155,6 +154,8 @@ class JsonSchema:
         key = list(input.keys())[0]
 
         # used for platformio_options in core_config
+
+        # pylint: disable=comparison-with-callable
         if key == cv.string_strict:
             output["type"] = "object"
             return output
@@ -163,8 +164,8 @@ class JsonSchema:
         output["type"] = "object"
 
         for k in input:
-            if (str(k) == 'ssid'):
-                print()
+            # if (str(k) == 'fast_connect'):
+            #     breakpoint()
 
             v = input[k]
 
