@@ -161,7 +161,7 @@ class JsonSchema:
             return output
 
         p = output[JSC_PROPERTIES] = {}
-        output["type"] = "object"
+        output["type"] = ["object", "null"]
 
         for k in input:
             # if (str(k) == 'fast_connect'):
