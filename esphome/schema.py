@@ -14,7 +14,6 @@ def schema_info(description):
     def decorate(func):
         schema_registry[func] = get_ref(description)
         return func
-
     return decorate
 
 
@@ -28,13 +27,13 @@ class JsonSchema:
 
         schema_registry[cv.boolean] = {"type": "boolean"}
 
-        schema_registry[cv.int_] = {"type": "number"}
-        schema_registry[cv.port] = {"type": "number"}
-        schema_registry[cv.int_range] = {"type": "number"}
-        schema_registry[cv.float_range] = {"type": "number"}
+        for v in [cv.int_, cv.int_range, cv.float_, cv.positive_float, cv.positive_float, cv.positive_not_null_int, cv.negative_one_to_one_float, cv.port]:
+            schema_registry[v] = {"type": "number"}
 
-        schema_registry[cv.string_strict] = {"type": "string"}
-        schema_registry[cv.valid_name] = {"type": "string"}
+        for v in [cv.string_strict, cv.valid_name, cv.hex_int, cv.hex_int_range,
+                  cv.positive_time_period, cv.positive_time_period_microseconds, cv.positive_time_period_milliseconds, cv.positive_time_period_minutes,
+                  cv.positive_time_period_seconds]:
+            schema_registry[v] = {"type": "string"}
 
         self.base_props = {}
         self.actions = []
