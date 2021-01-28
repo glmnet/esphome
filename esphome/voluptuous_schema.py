@@ -1,4 +1,5 @@
 import difflib
+from esphome.schema import extended_schema
 import itertools
 
 import voluptuous as vol
@@ -19,6 +20,7 @@ def ensure_multiple_invalid(err):
 # pylint: disable=protected-access, unidiomatic-typecheck
 class _Schema(vol.Schema):
     """Custom cv.Schema that prints similar keys on error."""
+
     def __init__(self, schema, required=False, extra=vol.PREVENT_EXTRA, extra_schemas=None):
         super().__init__(schema, required=required, extra=extra)
         # List of extra schemas to apply after validation
@@ -179,6 +181,7 @@ class _Schema(vol.Schema):
         self._extra_schemas.append(validator)
         return self
 
+    @extended_schema
     # pylint: disable=signature-differs
     def extend(self, *schemas, **kwargs):
         extra = kwargs.pop('extra', None)
