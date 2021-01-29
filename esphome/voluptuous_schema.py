@@ -1,8 +1,8 @@
 import difflib
-from esphome.schema import extended_schema
 import itertools
 
 import voluptuous as vol
+from esphome.jschema.schema import extended_schema
 
 
 class ExtraKeysInvalid(vol.Invalid):

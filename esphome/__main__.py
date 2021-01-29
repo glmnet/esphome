@@ -400,7 +400,7 @@ def command_update_all(args):
 
 
 def command_schema(args):
-    from esphome.schema import dump_schema
+    from esphome.jschema.schema import dump_schema
     CORE.config_path = args.configuration[0]
     dump_schema()
     return

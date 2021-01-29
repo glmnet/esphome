@@ -1,6 +1,5 @@
 """Helpers for config validation using voluptuous."""
 
-from esphome.schema import list_schema
 import logging
 import os
 import re
@@ -20,6 +19,7 @@ from esphome.const import ALLOWED_NAME_CHARS, CONF_AVAILABILITY, CONF_COMMAND_TO
 from esphome.core import CORE, HexInt, IPAddress, Lambda, TimePeriod, TimePeriodMicroseconds, \
     TimePeriodMilliseconds, TimePeriodSeconds, TimePeriodMinutes, DocumentLocation
 from esphome.helpers import list_starts_with, add_class_to_obj
+from esphome.jschema.schema import list_schema
 from esphome.voluptuous_schema import _Schema
 from esphome.yaml_util import ESPHomeDataBase
 

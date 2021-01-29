@@ -1,4 +1,4 @@
-from esphome.schema import automation_schema
+from esphome.jschema.schema import automation_schema
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_AUTOMATION_ID, CONF_CONDITION, CONF_ELSE, CONF_ID, CONF_THEN, \
