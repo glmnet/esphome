@@ -5,15 +5,16 @@ import json
 import voluptuous as vol
 
 
+schema_names = {}
 schema_registry = {}
+schema_extend_registry = {}
+schema_list_registry = {}
+
 automation_schemas = []  # actually only one
 
 
 def get_ref(definition):
     return {"$ref": "#/definitions/" + definition}
-
-
-schema_names = {}
 
 
 def add_definition_array_or_single_object(ref):
@@ -26,14 +27,20 @@ def add_definition_array_or_single_object(ref):
     ]}
 
 
-schema_extend_tree = {}
-
-
 def extended_schema(func):
     def decorate(*args, **kwargs):
 
         ret = func(*args, **kwargs)
-        schema_extend_tree[str(ret)] = args
+        schema_extend_registry[str(ret)] = args
+        return ret
+    return decorate
+
+
+def list_schema(func):
+    def decorate(*args, **kwargs):
+
+        ret = func(*args, **kwargs)
+        schema_list_registry[str(ret)] = args
         return ret
     return decorate
 
@@ -91,7 +98,6 @@ class JsonSchema:
             v = getattr(module, c)
             if isinstance(v, cv.Schema):
                 self.get_jschema(name, v)
-        return
 
     def add_components(self):
         import os
@@ -145,8 +151,6 @@ class JsonSchema:
                         domain = domain
                     self.base_props[domain] = schema
 
-        return
-
     def dump(self):
         return json.dumps(self.output)
 
@@ -157,8 +161,8 @@ class JsonSchema:
         schema = value(automation_schema)
 
         extra_schema = None
-        if AUTOMATION_SCHEMA == schema_extend_tree[str(schema)][0]:
-            extra_schema = schema_extend_tree[str(schema)][1]
+        if AUTOMATION_SCHEMA == schema_extend_registry[str(schema)][0]:
+            extra_schema = schema_extend_registry[str(schema)][1]
 
         if extra_schema:
             # add as property
@@ -192,6 +196,8 @@ class JsonSchema:
     def get_entry(self, parent_key, value):
         if value in schema_registry:
             entry = schema_registry[value]
+        elif str(value) in schema_list_registry:
+            entry = {"type": "array", "items": self.get_jschema(parent_key, schema_list_registry[str(value)])}
         elif value in automation_schemas:
             entry = self.get_automation_schema(parent_key, value)
         else:
@@ -237,6 +243,9 @@ class JsonSchema:
 
         # analyze input key, if it is not a Required or Optional, then it is an array
         output = {}
+
+        if isinstance(vschema, tuple):
+            vschema = vschema[0]
 
         # When schema contains all, all also has a schema which points
         # back to the containing schema

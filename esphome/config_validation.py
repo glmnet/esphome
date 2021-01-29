@@ -1,5 +1,6 @@
 """Helpers for config validation using voluptuous."""
 
+from esphome.schema import list_schema
 import logging
 import os
 import re
@@ -177,6 +178,7 @@ def boolean(value):
                   "Please use 'true' or 'false'".format(value))
 
 
+@list_schema
 def ensure_list(*validators):
     """Validate this configuration option to be a list.
 
