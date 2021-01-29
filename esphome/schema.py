@@ -118,6 +118,8 @@ class JsonSchema:
                                                          },
                                                          "allOf": platform_schema}}
 
+                    if domain == 'sensor':
+                        domain = domain
                     self.add_module_schemas(domain, c.module)
 
                     for platform in dir_names:
@@ -125,13 +127,13 @@ class JsonSchema:
                         if (p is not None):
                             # this is a platform element, e.g.
                             #   - platform: gpio
-                            schema = self.get_jschema(platform, p.config_schema)
+                            schema = self.get_jschema(platform, p.config_schema, create_return_ref=False)
                             platform_schema.append({
                                 "if": {
                                     JSC_PROPERTIES: {"platform": {"const": platform}}},
                                 "then": schema})
 
-                if c.config_schema is not None:
+                elif c.config_schema is not None:
                     # adds root components which are not platforms, e.g. api: logger:
                     if (domain == 'wifi'):
                         domain = domain
@@ -139,6 +141,8 @@ class JsonSchema:
                     schema = get_ref(domain)
                     if c.is_multi_conf:
                         schema = add_definition_array_or_single_object(schema)
+                    if domain in self.base_props:
+                        domain = domain
                     self.base_props[domain] = schema
 
         return
@@ -152,13 +156,14 @@ class JsonSchema:
         # get the schema from the automation schema
         schema = value(automation_schema)
 
+        extra_schema = None
         if AUTOMATION_SCHEMA == schema_extend_tree[str(schema)][0]:
-            extended_schema = schema_extend_tree[str(schema)][1]
+            extra_schema = schema_extend_tree[str(schema)][1]
 
-        if extended_schema:
+        if extra_schema:
             # add as property
-            automation_definition = self.get_jschema(name, extended_schema)
-            extended_key = schema_names[str(extended_schema)]
+            automation_definition = self.get_jschema(name, extra_schema)
+            extended_key = schema_names[str(extra_schema)]
             # automations can be either
             #   * a single action,
             #   * an array of action,
@@ -179,14 +184,9 @@ class JsonSchema:
                 self.definitions[SIMPLE_AUTOMATION] = simple_automation
 
             return get_ref(SIMPLE_AUTOMATION)
-            extended_key = schema_names[str(AUTOMATION_SCHEMA)]
 
         schema = add_definition_array_or_single_object(get_ref(JSC_ACTION))
         schema["anyOf"].append(get_ref(extended_key))
-
-        # relax multiple matching error
-        # schema["anyOf"] = schema.pop("oneOf")
-
         return schema
 
     def get_entry(self, parent_key, value):
@@ -229,7 +229,6 @@ class JsonSchema:
 
         schema_names[str(vschema)] = name
         self.definitions[name] = schema
-
         return get_ref(name)
 
     def convert_schema(self, path, vschema):
