@@ -19,7 +19,7 @@ from esphome.const import ALLOWED_NAME_CHARS, CONF_AVAILABILITY, CONF_COMMAND_TO
 from esphome.core import CORE, HexInt, IPAddress, Lambda, TimePeriod, TimePeriodMicroseconds, \
     TimePeriodMilliseconds, TimePeriodSeconds, TimePeriodMinutes, DocumentLocation
 from esphome.helpers import list_starts_with, add_class_to_obj
-from esphome.jschema.schema import list_schema
+from esphome.jschema.schema import list_schema, schema_registry_validator
 from esphome.voluptuous_schema import _Schema
 from esphome.yaml_util import ESPHomeDataBase
 
@@ -1220,6 +1220,7 @@ def validate_registry_entry(name, registry):
     }, extra=ALLOW_EXTRA)
     ignore_keys = extract_keys(base_schema)
 
+    @schema_registry_validator(registry)
     def validator(value):
         if isinstance(value, str):
             value = {value: {}}
