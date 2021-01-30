@@ -20,7 +20,7 @@ modules = {}
 registries = []
 pending_refs = []
 
-automation_schemas = []  # actually only one
+automation_schemas = []
 definitions = {}
 base_props = {}
 
@@ -130,15 +130,13 @@ def get_dirs():
                  not d.startswith('__') and
                  os.path.isdir(os.path.join(CORE_COMPONENTS_PATH, d))]
 
-    dir_names = ['binary_sensor', 'gpio']
+    dir_names = ['light', 'monochromatic']
     return dir_names
 
 
 def load_components():
     from esphome.config import get_component
-
-    from esphome import config_validation
-    modules["cv"] = config_validation
+    modules["cv"] = cv
     from esphome import automation
     modules["automation"] = automation
 
