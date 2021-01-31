@@ -104,8 +104,6 @@ SENSOR_SCHEMA = cv.MQTT_COMPONENT_SCHEMA.extend({
     }, cv.has_at_least_one_key(CONF_ABOVE, CONF_BELOW)),
 })
 
-CONFIG_SCHEMA = SENSOR_SCHEMA
-
 
 def sensor_schema(unit_of_measurement_, icon_, accuracy_decimals_):
     # type: (str, str, int) -> cv.Schema
