@@ -130,7 +130,8 @@ def get_dirs():
                  not d.startswith('__') and
                  os.path.isdir(os.path.join(CORE_COMPONENTS_PATH, d))]
 
-    dir_names = ['light', 'monochromatic']
+    # dir_names = ['interval']
+
     return dir_names
 
 
@@ -180,9 +181,11 @@ def add_components():
                 if (domain == 'wifi'):
                     domain = domain
 
-                schema = create_ref(domain, c.config_schema, get_jschema(domain, c.config_schema))
                 if c.is_multi_conf:
+                    schema = get_jschema(domain, c.config_schema)
                     schema = add_definition_array_or_single_object(schema)
+                else:
+                    schema = get_jschema(domain, c.config_schema, False)
                 if domain in base_props:
                     domain = domain
                 base_props[domain] = schema
@@ -209,23 +212,27 @@ def get_automation_schema(name, value):
         #        with again a single action or an array of actions
 
         automation_definition = definitions[extended_key]
+        if not JSC_PROPERTIES in automation_definition:
+            automation_definition[JSC_PROPERTIES] = {}
+            automation_definition[JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(get_ref(JSC_ACTION))
+            return automation_definition
+
         automation_definition[JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(
             get_ref(JSC_ACTION))
 
-    else:
-        if SIMPLE_AUTOMATION not in definitions:
-            simple_automation = add_definition_array_or_single_object(get_ref(JSC_ACTION))
-            simple_automation[JSC_ANYOF].append(get_jschema(AUTOMATION_SCHEMA.__module__, AUTOMATION_SCHEMA))
+        schema = add_definition_array_or_single_object(get_ref(JSC_ACTION))
+        schema[JSC_ANYOF].append(get_ref(extended_key))
+        return schema
 
-            definitions[schema_names[str(AUTOMATION_SCHEMA)]][JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(
-                get_ref(JSC_ACTION))
-            definitions[SIMPLE_AUTOMATION] = simple_automation
+    if SIMPLE_AUTOMATION not in definitions:
+        simple_automation = add_definition_array_or_single_object(get_ref(JSC_ACTION))
+        simple_automation[JSC_ANYOF].append(get_jschema(AUTOMATION_SCHEMA.__module__, AUTOMATION_SCHEMA))
 
-        return get_ref(SIMPLE_AUTOMATION)
+        definitions[schema_names[str(AUTOMATION_SCHEMA)]][JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(
+            get_ref(JSC_ACTION))
+        definitions[SIMPLE_AUTOMATION] = simple_automation
 
-    schema = add_definition_array_or_single_object(get_ref(JSC_ACTION))
-    schema[JSC_ANYOF].append(get_ref(extended_key))
-    return schema
+    return get_ref(SIMPLE_AUTOMATION)
 
 
 def get_entry(parent_key, value):
@@ -350,7 +357,7 @@ def convert_schema(path, vschema):
 
     p = output[JSC_PROPERTIES] = {}
     output["type"] = ["object", "null"]
-    output["description"] = 'converted: ' + str(vschema)
+    output["description"] = 'converted: ' + path + '/' + str(vschema)
 
     for k in vschema:
         if (str(k) == 'discovery'):
