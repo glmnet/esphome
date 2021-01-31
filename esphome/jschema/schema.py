@@ -194,36 +194,7 @@ def add_components():
 def get_automation_schema(name, value):
     from esphome.automation import AUTOMATION_SCHEMA
 
-    # get the schema from the automation schema
-    schema = value(automation_schema)
-
-    extra_schema = None
-    if AUTOMATION_SCHEMA == schema_extend_registry[str(schema)][0]:
-        extra_schema = schema_extend_registry[str(schema)][1]
-
-    if extra_schema:
-        # add as property
-        automation_definition = get_jschema(name, extra_schema)
-        extended_key = schema_names[str(extra_schema)]
-        # automations can be either
-        #   * a single action,
-        #   * an array of action,
-        #   * an object with automation's schema and a then key
-        #        with again a single action or an array of actions
-
-        automation_definition = definitions[extended_key]
-        if not JSC_PROPERTIES in automation_definition:
-            automation_definition[JSC_PROPERTIES] = {}
-            automation_definition[JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(get_ref(JSC_ACTION))
-            return automation_definition
-
-        automation_definition[JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(
-            get_ref(JSC_ACTION))
-
-        schema = add_definition_array_or_single_object(get_ref(JSC_ACTION))
-        schema[JSC_ANYOF].append(get_ref(extended_key))
-        return schema
-
+    # ensure SIMPLE_AUTOMATION
     if SIMPLE_AUTOMATION not in definitions:
         simple_automation = add_definition_array_or_single_object(get_ref(JSC_ACTION))
         simple_automation[JSC_ANYOF].append(get_jschema(AUTOMATION_SCHEMA.__module__, AUTOMATION_SCHEMA))
@@ -232,7 +203,40 @@ def get_automation_schema(name, value):
             get_ref(JSC_ACTION))
         definitions[SIMPLE_AUTOMATION] = simple_automation
 
-    return get_ref(SIMPLE_AUTOMATION)
+    # get the schema from the automation schema
+    vschema = value(automation_schema)
+
+    extra_vschema = None
+    if AUTOMATION_SCHEMA == schema_extend_registry[str(vschema)][0]:
+        extra_vschema = schema_extend_registry[str(vschema)][1]
+
+    if not extra_vschema:
+        return get_ref(SIMPLE_AUTOMATION)
+
+    # add then property
+    extra_jschema = get_jschema(name, extra_vschema, False)
+
+    if (is_ref(extra_jschema)):
+        return extra_jschema
+
+    if not JSC_PROPERTIES in extra_jschema:
+        # these are interval: and exposure_notifications, featuring automations a component
+        extra_jschema[JSC_ANYOF][1][JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(
+            get_ref(JSC_ACTION))
+        ref = create_ref(name, extra_vschema, extra_jschema)
+        return add_definition_array_or_single_object(ref)
+
+    # automations can be either
+    #   * a single action,
+    #   * an array of action,
+    #   * an object with automation's schema and a then key
+    #        with again a single action or an array of actions
+
+    extra_jschema[JSC_PROPERTIES]["then"] = add_definition_array_or_single_object(get_ref(JSC_ACTION))
+    jschema = add_definition_array_or_single_object(get_ref(JSC_ACTION))
+    jschema[JSC_ANYOF].append(extra_jschema)
+
+    return create_ref(name, extra_vschema, jschema)
 
 
 def get_entry(parent_key, value):
