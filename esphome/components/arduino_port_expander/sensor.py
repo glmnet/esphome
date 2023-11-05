@@ -44,6 +44,7 @@ CONFIG_SCHEMA = cv.All(
     )
     .extend(
         {
+            cv.GenerateID(): cv.declare_id(ArduinoPortExpanderSensor),
             cv.GenerateID(CONF_ARDUINO_PORT_EXPANDER_ID): cv.use_id(
                 ArduinoPortExpanderComponent
             ),
