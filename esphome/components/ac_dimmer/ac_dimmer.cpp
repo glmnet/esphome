@@ -1,9 +1,14 @@
 
+
 #include "ac_dimmer.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include <cmath>
 #include <numbers>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <stdio.h>
 
 #ifdef USE_ESP8266
 #include <core_esp8266_waveform.h>
@@ -134,6 +139,9 @@ void IRAM_ATTR HOT AcDimmerDataStore::gpio_intr() {
         this->disable_time_us = this->cycle_time_us;
       }
     }
+
+    esp_timer_stop(this->triac_timer);
+    esp_timer_start_once(this->triac_timer, (uint64_t) disable_time_us);
   }
 }
 
@@ -154,11 +162,23 @@ void IRAM_ATTR HOT AcDimmerDataStore::s_gpio_intr(AcDimmerDataStore *store) {
 #ifdef USE_ESP32
 // ESP32 implementation, uses basically the same code but needs to wrap
 // timer_interrupt() function to auto-reschedule
-static HWTimer *dimmer_timer = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-void IRAM_ATTR HOT AcDimmerDataStore::s_timer_intr() { timer_interrupt(); }
+// static HWTimer *dimmer_timer = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+// void IRAM_ATTR HOT AcDimmerDataStore::s_timer_intr() { timer_interrupt(); }
 #endif
 
-void AcDimmer::setup() {
+// --- Triac timer callback (runs in timer callback context) ---
+static void triac_timer_cb(void *arg) {
+  ISRInternalGPIOPin *pin = (ISRInternalGPIOPin *) arg;
+  // pulse triac gate
+
+  pin->digital_write(true);
+  // short delay in microseconds - esp_rom_delay_us is safe here
+  esp_rom_delay_us(GATE_ENABLE_TIME);
+
+  pin->digital_write(false);
+}
+
+void AcDimmer::setup_internal() {
   // extend all_dimmers array with our dimmer
 
   // Need to be sure the zero cross pin is setup only once, ESP8266 fails and ESP32 seems to fail silently
@@ -195,18 +215,85 @@ void AcDimmer::setup() {
 #endif
 #ifdef USE_ESP32
   // timer frequency of 1mhz
-  dimmer_timer = timer_begin(1000000);
-  timer_attach_interrupt(dimmer_timer, &AcDimmerDataStore::s_timer_intr);
-  // For ESP32, we can't use dynamic interval calculation because the timerX functions
-  // are not callable from ISR (placed in flash storage).
-  // Here we just use an interrupt firing every 50 µs.
-  timer_alarm(dimmer_timer, 50, true, 0);
+  // dimmer_timer = timer_begin(1000000);
+  // timer_attach_interrupt(dimmer_timer, &AcDimmerDataStore::s_timer_intr);
+  // // For ESP32, we can't use dynamic interval calculation because the timerX functions
+  // // are not callable from ISR (placed in flash storage).
+  // // Here we just use an interrupt firing every 50 µs.
+  // timer_alarm(dimmer_timer, 50, true, 0);
+
+  // create triac esp_timer
+  const esp_timer_create_args_t triac_timer_args = {
+      .callback = &triac_timer_cb,
+      .arg = &this->store_.gate_pin,
+      .name = "triac timer",
+
+  };
+  ESP_ERROR_CHECK(esp_timer_create(&triac_timer_args, &this->store_.triac_timer));
+
+  ESP_LOGI(TAG, "Timer handle: %p", this->store_.triac_timer);
 #endif
+}
+
+static void setup_func(void *pvArgs) {
+  AcDimmer *dimmer = (AcDimmer *) pvArgs;
+  dimmer->setup_internal();
+  vTaskDelete(NULL);
+}
+
+void AcDimmer::setup() {
+  // setup in core 1 so interrupts are attached to core 1
+  xTaskCreatePinnedToCore(setup_func, "ac_dimmer_setup", 4096, this, 1, NULL, 1);
+}
+
+static const char *task_state_str(eTaskState state) {
+  switch (state) {
+    case eRunning:
+      return "RUNNING";
+    case eReady:
+      return "READY";
+    case eBlocked:
+      return "BLOCKED";
+    case eSuspended:
+      return "SUSPENDED";
+    case eDeleted:
+      return "DELETED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+void list_all_tasks(void) {
+  UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
+  TaskStatus_t *tasks = (TaskStatus_t *) pvPortMalloc(num_tasks * sizeof(TaskStatus_t));
+  if (tasks == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for task list");
+    return;
+  }
+
+  // Optional: get total run time if enabled
+  uint32_t total_runtime = 0;
+  num_tasks = uxTaskGetSystemState(tasks, num_tasks, &total_runtime);
+
+  for (UBaseType_t i = 0; i < num_tasks; i++) {
+    const TaskStatus_t *t = &tasks[i];
+    ESP_LOGI(TAG, "%-16s | Core: %d | Pri: %2d | Base: %2d | Stack HW: %5u | %-9s | RunTime: %6u", t->pcTaskName,
+             (int) t->xCoreID, (int) t->uxCurrentPriority, (int) t->uxBasePriority, (unsigned) t->usStackHighWaterMark,
+             task_state_str(t->eCurrentState), (unsigned) t->ulRunTimeCounter);
+  }
+
+  if (total_runtime > 0) {
+    ESP_LOGI(TAG, "Total runtime: %u", (unsigned) total_runtime);
+  }
+
+  vPortFree(tasks);
 }
 
 void AcDimmer::write_state(float state) {
   state = std::acos(1 - (2 * state)) / std::numbers::pi;  // RMS power compensation
   auto new_value = static_cast<uint16_t>(roundf(state * 65535));
+  if (new_value == 0 && this->store_.value != 0)
+    list_all_tasks();
   if (new_value != 0 && this->store_.value == 0)
     this->store_.init_cycle = this->init_with_half_cycle_;
   this->store_.value = new_value;

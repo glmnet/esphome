@@ -4,6 +4,8 @@
 #include "esphome/core/hal.h"
 #include "esphome/components/output/float_output.h"
 
+#include "esp_timer.h"
+
 namespace esphome {
 namespace ac_dimmer {
 
@@ -35,6 +37,8 @@ struct AcDimmerDataStore {
 
   uint32_t timer_intr(uint32_t now);
 
+  esp_timer_handle_t triac_timer = NULL;
+
   void gpio_intr();
   static void s_gpio_intr(AcDimmerDataStore *store);
 #ifdef USE_ESP32
@@ -51,6 +55,8 @@ class AcDimmer : public output::FloatOutput, public Component {
   void set_zero_cross_pin(InternalGPIOPin *zero_cross_pin) { zero_cross_pin_ = zero_cross_pin; }
   void set_init_with_half_cycle(bool init_with_half_cycle) { init_with_half_cycle_ = init_with_half_cycle; }
   void set_method(DimMethod method) { method_ = method; }
+
+  void setup_internal();
 
  protected:
   void write_state(float state) override;

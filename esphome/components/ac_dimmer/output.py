@@ -1,8 +1,10 @@
 from esphome import pins
 import esphome.codegen as cg
 from esphome.components import output
+from esphome.components.esp32 import add_idf_sdkconfig_option
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_METHOD, CONF_MIN_POWER
+from esphome.core import CORE
 
 CODEOWNERS = ["@glmnet"]
 
@@ -49,3 +51,12 @@ async def to_code(config):
     cg.add(var.set_zero_cross_pin(pin))
     cg.add(var.set_init_with_half_cycle(config[CONF_INIT_WITH_HALF_CYCLE]))
     cg.add(var.set_method(config[CONF_METHOD]))
+
+    if CORE.is_esp32 and CORE.using_esp_idf:
+        add_idf_sdkconfig_option("CONFIG_FREERTOS_USE_TRACE_FACILITY", True)
+        add_idf_sdkconfig_option("CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS", True)
+        add_idf_sdkconfig_option("CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID", True)
+        add_idf_sdkconfig_option("CONFIG_ESP_TIMER_SHOW_EXPERIMENTAL", True)
+        add_idf_sdkconfig_option("CONFIG_ESP_TIMER_TASK_AFFINITY", "0x01")
+        add_idf_sdkconfig_option("CONFIG_ESP_TIMER_TASK_AFFINITY_CPU1", True)
+        add_idf_sdkconfig_option("CONFIG_ESP_TIMER_ISR_AFFINITY_CPU1", True)
